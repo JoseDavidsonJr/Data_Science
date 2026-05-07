@@ -2,9 +2,18 @@ import pandas as pd
 import json
 import os
 import sqlite3
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import accuracy_score, mean_absolute_error
+import mlflow
+import mlflow.sklearn
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    mean_absolute_error
+)
 
 # =====================================================
 # CONFIGURAÇÃO
@@ -15,157 +24,317 @@ banco = "facape_despesas.db"
 
 dados_organizados = []
 
-print("Arquivos encontrados:")
-print(os.listdir(pasta))
-
 # =====================================================
 # LEITURA DOS JSONS
 # =====================================================
 
+print("Arquivos encontrados:")
+print(os.listdir(pasta))
+
 for arquivo in os.listdir(pasta):
+
     if arquivo.lower().endswith(".json"):
+
         print(f"\nLendo arquivo: {arquivo}")
 
         caminho_arquivo = os.path.join(pasta, arquivo)
 
-        # Exemplo:
-        # despesas21.JSON → 2021
         ano = arquivo.lower().replace("despesas", "").replace(".json", "")
-        ano = "20" + ano
+        ano = int("20" + ano)
 
         with open(caminho_arquivo, "r", encoding="utf-8") as f:
             dados = json.load(f)
 
         for item in dados:
+
+            fornecedor = (
+                item.get("fornecedor", {})
+                    .get("pessoa", {})
+                    .get("nome")
+            )
+
+            valor_empenhado = item.get("valorEmpenhado")
+            valor_pago = item.get("valorPago")
+            valor_liquidado = item.get("valorLiquidado")
+            valor_retido = item.get("valorRetido")
+
+            if valor_empenhado is None:
+                valor_empenhado = 0
+
+            if valor_pago is None:
+                valor_pago = 0
+
+            if valor_liquidado is None:
+                valor_liquidado = 0
+
+            if valor_retido is None:
+                valor_retido = 0
+
+            taxa_execucao = 0
+
+            if valor_empenhado > 0:
+                taxa_execucao = valor_pago / valor_empenhado
+
             linha = {
                 "id_registro": item.get("id"),
-
-                # fornecedor
-                "fornecedor": item.get("fornecedor", {})
-                                  .get("pessoa", {})
-                                  .get("nome"),
-
-                "cpf_cnpj": item.get("fornecedor", {})
-                                .get("pessoa", {})
-                                .get("cpfCnpj"),
-
-                # ano
+                "fornecedor": fornecedor,
                 "ano": ano,
-
-                # valores principais
-                "valor_empenhado": item.get("valorEmpenhado"),
-                "valor_liquidado": item.get("valorLiquidado"),
-                "valor_pago": item.get("valorPago"),
-                "valor_executado": item.get("valorExecutado"),
-
-                # campos formatados
-                "empenhado": item.get("empenhado"),
-                "liquidado": item.get("liquidado"),
-                "pago": item.get("pago")
+                "valor_empenhado": valor_empenhado,
+                "valor_pago": valor_pago,
+                "valor_liquidado": valor_liquidado,
+                "valor_retido": valor_retido,
+                "taxa_execucao": taxa_execucao
             }
 
             dados_organizados.append(linha)
 
 # =====================================================
-# DATAFRAME PRINCIPAL
+# DATAFRAME
 # =====================================================
 
-df_total = pd.DataFrame(dados_organizados)
+df = pd.DataFrame(dados_organizados)
 
-print("\n==============================")
-print("DATAFRAME PRINCIPAL")
-print("==============================")
+print("\n========================")
+print("DATAFRAME")
+print("========================")
 
-print(df_total.head())
-print(df_total.info())
+print(df.head())
+print(df.info())
+
+# =====================================================
+# FEATURE ENGINEERING
+# =====================================================
+
+print("\n========================")
+print("FEATURE ENGINEERING")
+print("========================")
+
+historico = (
+    df.groupby(["fornecedor", "ano"])["taxa_execucao"]
+      .mean()
+      .reset_index()
+)
+
+historico["media_execucao_historica"] = (
+    historico.groupby("fornecedor")["taxa_execucao"]
+    .shift(1)
+)
+
+historico["media_execucao_historica"] = (
+    historico.groupby("fornecedor")["media_execucao_historica"]
+    .transform(lambda x: x.expanding().mean())
+)
+
+df = df.merge(
+    historico[
+        [
+            "fornecedor",
+            "ano",
+            "media_execucao_historica"
+        ]
+    ],
+    on=["fornecedor", "ano"],
+    how="left"
+)
+
+df["media_execucao_historica"] = (
+    df["media_execucao_historica"]
+    .fillna(0)
+)
+
+# =====================================================
+# FORNECEDOR RECORRENTE
+# =====================================================
+
+anos_fornecedor = (
+    df.groupby("fornecedor")["ano"]
+    .nunique()
+    .reset_index()
+)
+
+anos_fornecedor["recorrente"] = (
+    anos_fornecedor["ano"]
+    .apply(lambda x: 1 if x > 1 else 0)
+)
+
+df = df.merge(
+    anos_fornecedor[
+        ["fornecedor", "recorrente"]
+    ],
+    on="fornecedor",
+    how="left"
+)
+
+# =====================================================
+# TREINO / TESTE TEMPORAL
+# =====================================================
+
+train = df[df["ano"] <= 2023]
+test = df[df["ano"] >= 2024]
+
+features = [
+    "valor_empenhado",
+    "valor_pago",
+    "valor_liquidado",
+    "valor_retido",
+    "taxa_execucao",
+    "media_execucao_historica"
+]
+
+X_train = train[features]
+y_train = train["recorrente"]
+
+X_test = test[features]
+y_test = test["recorrente"]
+
+# =====================================================
+# MLFLOW
+# =====================================================
+
+mlflow.set_experiment("facape_despesas")
+
+# =====================================================
+# MODELO CLASSIFICADOR
+# =====================================================
+
+print("\n========================")
+print("MODELO CLASSIFICADOR")
+print("========================")
+
+for n_estimators in [10, 30, 50, 100, 200]:
+
+    with mlflow.start_run():
+
+        pipe = Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", RandomForestClassifier(
+                n_estimators=n_estimators,
+                random_state=42
+            ))
+        ])
+
+        pipe.fit(X_train, y_train)
+
+        previsoes = pipe.predict(X_test)
+
+        acc = accuracy_score(y_test, previsoes)
+
+        print(f"\nRandomForest ({n_estimators})")
+        print(f"Acurácia: {acc:.4f}")
+
+        print(classification_report(y_test, previsoes))
+
+        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_metric("accuracy", acc)
+
+        mlflow.sklearn.log_model(pipe, "modelo_randomforest")
 
 # =====================================================
 # RESUMO ANUAL
 # =====================================================
 
 resumo_ano = (
-    df_total.groupby("ano")[
+    df.groupby("ano")[
         [
             "valor_empenhado",
-            "valor_liquidado",
             "valor_pago",
-            "valor_executado"
+            "valor_liquidado",
+            "valor_retido"
         ]
     ]
     .sum()
     .reset_index()
 )
 
-print("\n==============================")
-print("RESUMO POR ANO")
-print("==============================")
+print("\n========================")
+print("RESUMO ANUAL")
+print("========================")
 
 print(resumo_ano)
 
 # =====================================================
-# ANÁLISE DE FORNECEDORES
+# MODELO DE PREVISÃO TEMPORAL
 # =====================================================
 
-print("\n==============================")
-print("ANÁLISE DE FORNECEDORES")
-print("==============================")
+print("\n========================")
+print("PREVISÃO TEMPORAL")
+print("========================")
 
-fornecedores_anos = (
-    df_total.dropna(subset=["fornecedor"])
-    .groupby("fornecedor")["ano"]
-    .nunique()
-    .reset_index()
-    .rename(columns={"ano": "quantidade_de_anos"})
-)
-
-print("\nFornecedores e quantidade de anos:")
-print(fornecedores_anos.head(20))
-
-# fornecedores recorrentes
-fornecedores_repetidos = fornecedores_anos[
-    fornecedores_anos["quantidade_de_anos"] > 1
+train_temporal = resumo_ano[
+    resumo_ano["ano"] <= 2023
 ]
 
-print("\nFornecedores recorrentes:")
-print(fornecedores_repetidos.head(20))
+test_temporal = resumo_ano[
+    resumo_ano["ano"] >= 2024
+]
 
-# fornecedores novos
-ultimo_ano = df_total["ano"].max()
-
-fornecedores_ultimo_ano = set(
-    df_total[
-        df_total["ano"] == ultimo_ano
-    ]["fornecedor"].dropna()
-)
-
-fornecedores_anos_anteriores = set(
-    df_total[
-        df_total["ano"] < ultimo_ano
-    ]["fornecedor"].dropna()
-)
-
-fornecedores_novos = (
-    fornecedores_ultimo_ano - fornecedores_anos_anteriores
-)
-
-df_fornecedores_novos = pd.DataFrame({
-    "fornecedor_novo": list(fornecedores_novos)
+anos_futuros = pd.DataFrame({
+    "ano": [2026, 2027]
 })
 
-print(f"\nFornecedores novos em {ultimo_ano}:")
-print(df_fornecedores_novos.head(20))
+resultado_previsoes = anos_futuros.copy()
+
+for coluna in [
+    "valor_empenhado",
+    "valor_pago",
+    "valor_liquidado",
+    "valor_retido"
+]:
+
+    X_train = train_temporal[["ano"]]
+    y_train = train_temporal[coluna]
+
+    X_test = test_temporal[["ano"]]
+    y_test = test_temporal[coluna]
+
+    modelo = LinearRegression()
+
+    modelo.fit(X_train, y_train)
+
+    previsoes = modelo.predict(X_test)
+
+    mae = mean_absolute_error(y_test, previsoes)
+
+    print(f"\n{coluna}")
+    print(f"MAE: {mae:.2f}")
+
+    futuro = modelo.predict(anos_futuros)
+
+    resultado_previsoes[coluna] = futuro
+
+print("\n========================")
+print("PREVISÕES FUTURAS")
+print("========================")
+
+print(resultado_previsoes)
+
+# =====================================================
+# FORNECEDORES RECORRENTES
+# =====================================================
+
+print("\n========================")
+print("FORNECEDORES RECORRENTES")
+print("========================")
+
+fornecedores_recorrentes = (
+    anos_fornecedor[
+        anos_fornecedor["recorrente"] == 1
+    ]
+)
+
+print(fornecedores_recorrentes)
 
 # =====================================================
 # SQLITE
 # =====================================================
 
-print("\n==============================")
-print("SALVANDO NO SQLITE")
-print("==============================")
+print("\n========================")
+print("SALVANDO SQLITE")
+print("========================")
 
 conn = sqlite3.connect(banco)
 
-df_total.to_sql(
+df.to_sql(
     "despesas",
     conn,
     if_exists="replace",
@@ -173,28 +342,21 @@ df_total.to_sql(
 )
 
 resumo_ano.to_sql(
-    "resumo_por_ano",
+    "resumo_anual",
     conn,
     if_exists="replace",
     index=False
 )
 
-fornecedores_anos.to_sql(
-    "fornecedores_participacao",
+resultado_previsoes.to_sql(
+    "previsoes_futuras",
     conn,
     if_exists="replace",
     index=False
 )
 
-fornecedores_repetidos.to_sql(
-    "fornecedores_repetidos",
-    conn,
-    if_exists="replace",
-    index=False
-)
-
-df_fornecedores_novos.to_sql(
-    "fornecedores_novos",
+fornecedores_recorrentes.to_sql(
+    "fornecedores_recorrentes",
     conn,
     if_exists="replace",
     index=False
@@ -202,162 +364,8 @@ df_fornecedores_novos.to_sql(
 
 conn.close()
 
-print("\nBanco SQLite criado com sucesso!")
+print("\nBanco salvo com sucesso!")
 
-# =====================================================
-# MODELO 1 — PREVER FORNECEDOR RECORRENTE
-# =====================================================
-
-print("\n==============================")
-print("MODELO 1 — FORNECEDOR RECORRENTE")
-print("==============================")
-
-fornecedores_modelo = (
-    df_total.dropna(subset=["fornecedor"])
-    .groupby("fornecedor")["ano"]
-    .nunique()
-    .reset_index()
-)
-
-# Se apareceu em mais de 1 ano → recorrente
-fornecedores_modelo["recorrente"] = (
-    fornecedores_modelo["ano"]
-    .apply(lambda x: 1 if x > 1 else 0)
-)
-
-# Mostrar quais são os fornecedores recorrentes
-fornecedores_recorrentes = fornecedores_modelo[
-    fornecedores_modelo["recorrente"] == 1
-]
-
-print("\n===== FORNECEDORES RECORRENTES =====")
-print(
-    fornecedores_recorrentes
-    .sort_values(by="ano", ascending=False)
-)
-
-# X = quantidade de anos
-X = fornecedores_modelo[["ano"]]
-
-# y = recorrente ou não
-y = fornecedores_modelo["recorrente"]
-
-# Separar treino e teste
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
-)
-
-# Criar modelo
-modelo_fornecedor = LogisticRegression()
-
-# Treinar
-modelo_fornecedor.fit(X_train, y_train)
-
-# Prever
-previsoes = modelo_fornecedor.predict(X_test)
-
-# Avaliar
-acc = accuracy_score(y_test, previsoes)
-
-print(f"\nAcurácia do modelo: {acc:.2f}")
-
-# Exemplo de previsão
-print("\nExemplo de previsão:")
-
-novo_dado = pd.DataFrame({
-    "ano": [3]
-})
-
-resultado = modelo_fornecedor.predict(novo_dado)[0]
-
-print("Se o fornecedor apareceu em 3 anos:")
-
-if resultado == 1:
-    print("→ Fornecedor recorrente")
-else:
-    print("→ Fornecedor NÃO recorrente")
-# =====================================================
-# MODELO 2 — PREVISÃO DE DESPESAS FUTURAS
-# =====================================================
-
-print("\n==============================")
-print("MODELO 2 — PREVISÃO DE DESPESAS FUTURAS")
-print("==============================")
-
-# Garantir que ano está como número
-resumo_ano["ano"] = resumo_ano["ano"].astype(int)
-
-print("\nResumo anual:")
-print(resumo_ano[["ano", "valor_pago"]])
-
-# X = ano
-X = resumo_ano[["ano"]]
-
-# y = total pago
-y = resumo_ano["valor_pago"]
-
-# Separar treino e teste
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
-)
-
-# Criar modelo de regressão
-modelo_despesa = LinearRegression()
-
-# Treinar
-modelo_despesa.fit(X_train, y_train)
-
-# Fazer previsões no teste
-previsoes = modelo_despesa.predict(X_test)
-
-# Avaliar erro médio
-mae = mean_absolute_error(y_test, previsoes)
-
-print(f"\nMAE (erro médio absoluto): {mae:.2f}")
-
-# =========================
-# PREVISÃO DE 2026
-# =========================
-
-previsao_2026 = pd.DataFrame({
-    "ano": [2026]
-})
-
-valor_2026 = modelo_despesa.predict(previsao_2026)[0]
-
-print("\nPrevisão para 2026:")
-print(f"→ Valor estimado de despesas: R$ {valor_2026:,.2f}")
-
-# =========================
-# PREVISÃO DE 2027
-# =========================
-
-previsao_2027 = pd.DataFrame({
-    "ano": [2027]
-})
-
-valor_2027 = modelo_despesa.predict(previsao_2027)[0]
-
-print("\nPrevisão para 2027:")
-print(f"→ Valor estimado de despesas: R$ {valor_2027:,.2f}")
-
-# =========================
-# TENDÊNCIA
-# =========================
-
-coeficiente = modelo_despesa.coef_[0]
-
-print("\nAnálise de tendência:")
-
-if coeficiente > 0:
-    print("→ As despesas estão em CRESCIMENTO")
-elif coeficiente < 0:
-    print("→ As despesas estão em QUEDA")
-else:
-    print("→ As despesas estão ESTÁVEIS")
+print("\n========================")
+print("EXECUÇÃO FINALIZADA")
+print("========================")
