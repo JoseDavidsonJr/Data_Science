@@ -19,8 +19,12 @@ from sklearn.metrics import (
 # CONFIGURAÇÃO
 # =====================================================
 
-pasta = r"C:\Facape_despesas"
-banco = "facape_despesas.db"
+pasta = input(
+    "Digite o caminho da pasta com os JSONs: "
+).strip().replace('"', '')
+banco = input(
+    "Digite o nome do banco SQLite: "
+).strip()
 
 dados_organizados = []
 
