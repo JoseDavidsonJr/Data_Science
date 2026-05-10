@@ -1,0 +1,18 @@
+[project]
+name = "facape-projeto"
+version = "1.0.0"
+description = "Projeto de Ciencia de Dados FACAPE"
+requires-python = ">=3.11"
+
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "shap",
+    "mlflow",
+    "fastapi",
+    "uvicorn",
+    "joblib",
+    "evidently"
+]
