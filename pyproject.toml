@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "facape-despesas"
+version = "1.0.0"
+description = "Análise e previsão de padrões de despesas públicas FACAPE 2021-2025"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+    "scikit-learn>=1.4",
+    "mlflow>=2.13",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "joblib>=1.4",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter>=1.0",
+    "ipykernel>=6.29",
+    "pytest>=8.0",
+]

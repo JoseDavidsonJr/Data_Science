@@ -1,0 +1,33 @@
+# Banco de dados
+*.db
+
+# Modelos serializados
+models/*.pkl
+
+# Gráficos gerados
+*.png
+
+# MLflow
+mlruns/
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Variáveis sensíveis
+.env
+
+# IDEs
+.vscode/
+.idea/
