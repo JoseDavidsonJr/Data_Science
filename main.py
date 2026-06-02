@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, mean_absolute_error
 # CONFIGURAÇÃO
 # =====================================================
 
-pasta = r"C:\Facape_despesas"
+pasta = "C:\Facape_despesas"
 banco = "facape_despesas.db"
 
 dados_organizados = []
