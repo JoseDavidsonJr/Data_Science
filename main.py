@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import os
 import sqlite3
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import accuracy_score, mean_absolute_error
@@ -10,40 +11,46 @@ from sklearn.metrics import accuracy_score, mean_absolute_error
 # CONFIGURAÇÃO
 # =====================================================
 
-pasta = "C:\Facape_despesas"
-banco = "facape_despesas.db"
+# Define o caminho padrão como a pasta 'data' dentro do diretório atual onde o script roda.
+# Mas permite sobrescrever via Variável de Ambiente (Docker).
+caminho_padrao = Path(__file__).parent / "data" if "__file__" in globals() else Path.cwd() / "data"
+pasta_string = os.getenv("FACAPE_DATA_DIR", str(caminho_padrao))
+pasta = Path(pasta_string)
+
+# O banco será salvo no diretório raiz do projeto, não dentro da pasta de dados
+banco = Path.cwd() / "facape_despesas.db"
 
 dados_organizados = []
 
-print("Arquivos encontrados:")
-print(os.listdir(pasta))
+# Validação para evitar que o script quebre silenciosamente
+if not pasta.exists() or not pasta.is_dir():
+    raise FileNotFoundError(f"Erro Crítico: O diretório de dados '{pasta}' não foi encontrado. Verifique os caminhos.")
+
+print(f"Buscando arquivos no diretório: {pasta}")
+print(f"Arquivos encontrados: {os.listdir(pasta)}")
 
 # =====================================================
 # LEITURA DOS JSONS
 # =====================================================
 
-for arquivo in os.listdir(pasta):
-    if arquivo.lower().endswith(".json"):
-        print(f"\nLendo arquivo: {arquivo}")
+for arquivo_path in pasta.glob("*.json"):
+    print(f"\nLendo arquivo: {arquivo_path.name}")
 
-        caminho_arquivo = os.path.join(pasta, arquivo)
+    # Extração do ano (mantendo sua lógica original, mas usando o nome do arquivo)
+    ano = arquivo_path.name.lower().replace("despesas", "").replace(".json", "")
+    ano = "20" + ano
+    
 
-        # Exemplo:
-        # despesas21.JSON → 2021
-        ano = arquivo.lower().replace("despesas", "").replace(".json", "")
-        ano = "20" + ano
-
-        with open(caminho_arquivo, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-
+    with open(caminho_arquivo, "r", encoding="utf-8") as f:
+        dados = json.load(f)
         for item in dados:
             linha = {
                 "id_registro": item.get("id"),
 
                 # fornecedor
                 "fornecedor": item.get("fornecedor", {})
-                                  .get("pessoa", {})
-                                  .get("nome"),
+                                    .get("pessoa", {})
+                                    .get("nome"),
 
                 "cpf_cnpj": item.get("fornecedor", {})
                                 .get("pessoa", {})
