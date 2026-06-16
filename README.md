@@ -3,6 +3,14 @@
 
 Sistema de inteligência de dados para análise de risco em contratos públicos da FACAPE (Autarquia Educacional do Vale do São Francisco). O projeto utiliza **CRISP-DM**, **MCP-Brasil** para coleta automatizada e **Prometheus/Grafana** para monitoramento de drift de modelo.
 
+## Integrantes
+
+| Nome | E-mail |
+|---|---|
+| Caio Lassalvia | lasalviacaio3@gmail.com |
+| José Davidson | juniorpimenteldavidson@gmail.com |
+| Vinicius de Carvalho | vinicius.carvalho03101998@gmail.com |
+
 ## 🏗️ Arquitetura Técnica
 
 - **Coleta:** Integração dinâmica com o **TCE-PE (SAGRES)** via `mcp-brasil`.
