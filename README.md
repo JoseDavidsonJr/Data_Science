@@ -9,7 +9,7 @@ Sistema de inteligência de dados para análise de risco em contratos públicos 
 |---|---|
 | Caio Lassalvia de Barros | lasalviacaio3@gmail.com |
 | José Davidson Lopes Pimentel Júnior | juniorpimenteldavidson@gmail.com |
-| Vinicius de Carvalho Pereira | vinicius.carvalho03101998@gmail.com |
+| Vinicius de Carvalho Pereira | vinicius.carvalho03101@gmail.com |
 
 ## 🏗️ Arquitetura Técnica
 
