@@ -39,8 +39,9 @@ Sistema de inteligência de dados para análise de risco em contratos públicos 
    make up
    ```
    - **API:** http://localhost:8000/docs
-   - **Grafana:** http://localhost:3000 (admin/admin)
+   - **Grafana (MLOps & BI):** http://localhost:3000 (admin/admin)
    - **Prometheus:** http://localhost:9090
+   - **MLflow UI:** `make mlflow-ui` (http://localhost:5000)
 
 ## 🧪 Testes e Qualidade
 
@@ -55,6 +56,7 @@ python -m pytest tests/
 data/           Scripts de carga (SQLite) e ingestão via MCP-Brasil.
 src/
   api.py        Serviço FastAPI com métricas Prometheus.
+  business_exporter.py  Exportador de métricas de BI para o Grafana.
   features.py   Engenharia de features com lookback temporal (evita leakage).
   monitor.py    Engine de detecção de drift e auditoria em PostgreSQL.
   train.py      Pipeline de classificação e tracking MLflow.
@@ -63,5 +65,9 @@ reports/        Insights visuais gerados automaticamente.
 tests/          Suíte de testes unitários.
 ```
 
-## 📈 Metodologia de Risco
-O modelo de classificação utiliza um split temporal (**Treino: 2021-2023 / Teste: 2024-2025**) para simular o uso real. A feature mais impactante é o histórico de execução do fornecedor (`hist_taxa_execucao`), provando que o comportamento passado é o melhor preditor de riscos futuros na gestão pública.
+## 📈 Metodologia e Resultados
+O projeto processa atualmente **1.870 registros** extraídos do SAGRES (TCE-PE). O modelo de classificação utiliza um split temporal (**Treino: 2021-2023 / Teste: 2024-2025**) para simular o uso real. 
+
+- **Inteligência de Negócio**: Dashboard Grafana integrado com Top 10 fornecedores e evolução orçamentária (Empenhado vs Pago).
+- **Impacto**: A feature mais relevante é o `valor_empenhado_log`, indicando que o vulto financeiro é o principal indutor de risco na autarquia.
+
