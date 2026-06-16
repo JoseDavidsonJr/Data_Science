@@ -14,7 +14,6 @@ FEATURE_COLS = [
     "valor_empenhado_log",
     "tipo",
     "perc_retido",
-    "perc_saldo",
     "hist_taxa_execucao",
     "hist_anos_ativo",
     "hist_perc_anulacao",

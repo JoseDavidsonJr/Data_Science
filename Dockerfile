@@ -19,10 +19,14 @@ RUN pip install setuptools wheel
 RUN pip install --no-cache-dir .
 RUN pip install --no-cache-dir psycopg2-binary 
 
-# Copia o código fonte
+# Copia o código fonte e bases de dados para reprodutibilidade
 COPY src/ ./src/
 COPY data/ ./data/
 COPY models/ ./models/
+COPY facape_mlflow.db ./facape_mlflow.db
+
+# Configura o ambiente para o MLflow dentro do container
+ENV MLFLOW_TRACKING_URI=sqlite:///app/facape_mlflow.db
 
 # Cria o diretório de dados se não existir
 RUN mkdir -p data models

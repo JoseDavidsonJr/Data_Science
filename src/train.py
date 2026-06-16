@@ -99,16 +99,22 @@ def run():
     print(f"\nTreino (2021–2023): {len(train)} registros | {y_train.mean():.1%} problemáticos")
     print(f"Teste  (2024–2025): {len(test)} registros  | {y_test.mean():.1%} problemáticos\n")
 
+    # 1. Configuração da infraestrutura de telemetria
+    mlflow.set_tracking_uri("http://localhost:5000")
     mlflow.set_experiment("facape-execucao-problematica")
 
     best_f1, best_run_id, best_pipe = -1.0, None, None
 
     for exp in EXPERIMENTS:
         with mlflow.start_run(run_name=exp["name"]):
-            pipe = Pipeline([
-                ("scaler", StandardScaler()),
-                ("model", exp["model"]),
-            ])
+            
+            # 2. Injeção condicional de processamento matemático
+            if exp["params"]["model_type"] == "LogisticRegression":
+                steps = [("scaler", StandardScaler()), ("model", exp["model"])]
+            else:
+                steps = [("model", exp["model"])]
+            
+            pipe = Pipeline(steps)
             pipe.fit(X_train, y_train)
             metrics = evaluate(pipe, X_test, y_test)
 
