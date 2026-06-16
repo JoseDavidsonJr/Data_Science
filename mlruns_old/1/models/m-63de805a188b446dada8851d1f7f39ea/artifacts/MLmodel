@@ -1,0 +1,23 @@
+artifact_path: /var/home/vini/Documentos/Data_Science/mlruns/1/models/m-63de805a188b446dada8851d1f7f39ea/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.14.3
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.12.0
+model_id: m-63de805a188b446dada8851d1f7f39ea
+model_size_bytes: 1464193
+model_uuid: m-63de805a188b446dada8851d1f7f39ea
+prompts: null
+run_id: a16fb788f9f34398977f302f3046997d
+utc_time_created: '2026-05-07 10:55:04.180855'

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "facape-despesas"
@@ -16,6 +16,7 @@ dependencies = [
     "joblib>=1.4",
     "matplotlib>=3.8",
     "seaborn>=0.13",
+    "mcp-brasil>=0.14.0",
 ]
 
 [project.optional-dependencies]

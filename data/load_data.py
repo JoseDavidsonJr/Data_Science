@@ -11,8 +11,10 @@ ROOT = Path(__file__).parent.parent
 
 def load_jsons() -> pd.DataFrame:
     rows = []
-    for f in sorted(ROOT.glob("despesas??.JSON")):
-        ano = int("20" + f.stem.replace("despesas", ""))
+    # Busca tanto os originais quanto os novos via MCP
+    files = sorted(ROOT.glob("despesas??.JSON")) + sorted(ROOT.glob("despesas??_mcp.JSON"))
+    for f in files:
+        ano = int("20" + f.name.replace("despesas", "")[:2])
         for item in json.loads(f.read_text(encoding="utf-8")):
             rows.append(
                 {

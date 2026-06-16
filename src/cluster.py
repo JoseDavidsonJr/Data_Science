@@ -109,7 +109,8 @@ def run():
     contagem = perfil["perfil_risco"].value_counts().reindex(ORDEM)
     sns.barplot(
         x=contagem.index, y=contagem.values,
-        palette=[CORES[c] for c in ORDEM], ax=axes[1]
+        palette=[CORES[c] for c in ORDEM], ax=axes[1],
+        hue=contagem.index, legend=False
     )
     for i, v in enumerate(contagem.values):
         axes[1].text(i, v + 0.3, str(v), ha="center", fontsize=11)

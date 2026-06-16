@@ -1,0 +1,45 @@
+name: FACAPE Data Pipeline
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Toda segunda-feira à meia-noite
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Permite rodar manualmente
+
+jobs:
+  build-and-train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          make install
+
+      - name: Fetch fresh data from MCP-Brasil
+        run: make fetch
+
+      - name: Run training pipeline
+        run: make all-models
+
+      - name: Archive production models
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models
+          path: models/
+
+      - name: Test Docker Stack
+        run: |
+          make up
+          sleep 30
+          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:9090/-/healthy || exit 1
+          make down

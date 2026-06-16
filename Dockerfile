@@ -2,15 +2,32 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 1. Instala dependências (Boa prática mantida!)
-COPY pyproject.toml .
-RUN pip install --no-cache-dir .
+# Instala ferramentas de build necessárias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. Copia apenas o código da API e o modelo já treinado
-COPY src/api.py ./src/
-# O modelo treinado (.pkl, .joblib, etc) deve ser gerado antes e copiado, 
-# ou idealmente montado via volume.
-COPY models/model.pkl ./models/
+# Copia arquivos de configuração
+COPY pyproject.toml Makefile ./
+
+# atualiza o pip e instala as ferramentas de build
+RUN pip install --upgrade pip
+RUN pip install setuptools wheel
+
+# Instala dependências
+RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir psycopg2-binary 
+
+# Copia o código fonte
+COPY src/ ./src/
+COPY data/ ./data/
+COPY models/ ./models/
+
+# Cria o diretório de dados se não existir
+RUN mkdir -p data models
 
 EXPOSE 8000
+
+# O comando de inicialização
 CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

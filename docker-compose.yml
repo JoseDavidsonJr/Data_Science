@@ -1,39 +1,45 @@
 version: '3.8'
 
 services:
-  api:
-    build: . 
-    container_name: ml_api
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-
-  db:
+  # O Banco de dados para persistência de métricas (já mencionado no monitor.py)
+  drift_db:
     image: postgres:15
-    container_name: drift_db
     environment:
+      POSTGRES_DB: drift_metrics
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin_password
-      POSTGRES_DB: drift_metrics
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
+  # Prometheus para coletar as métricas do src/monitor.py
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+
+  # Grafana para visualização
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana_dashboard
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=grafana_password
-    depends_on:
-      - db
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+      - drift_db
 
-volumes:
-  pgdata:
-  grafana_data:
+  # API do projeto
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://admin:admin_password@drift_db:5432/drift_metrics
+    depends_on:
+      - drift_db
