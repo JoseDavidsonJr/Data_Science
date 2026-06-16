@@ -1,6 +1,5 @@
 # FACAPE — Análise de Execução Orçamentária (2021–2025)
 
-[![FACAPE Data Pipeline](https://github.com/USER/REPO/actions/workflows/pipeline.yml/badge.svg)](https://github.com/USER/REPO/actions/workflows/pipeline.yml)
 
 Sistema de inteligência de dados para análise de risco em contratos públicos da FACAPE (Autarquia Educacional do Vale do São Francisco). O projeto utiliza **CRISP-DM**, **MCP-Brasil** para coleta automatizada e **Prometheus/Grafana** para monitoramento de drift de modelo.
 
