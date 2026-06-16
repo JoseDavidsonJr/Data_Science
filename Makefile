@@ -23,7 +23,7 @@ all-models: load train anomaly cluster
 
 # Inicia toda a stack (API + Prometheus + Grafana + DB)
 up: docker-build
-	docker-compose up -d
+	docker compose up -d
 	@echo "-------------------------------------------------------"
 	@echo "Stack iniciada!"
 	@echo "API: http://localhost:8000/docs"
@@ -33,15 +33,15 @@ up: docker-build
 
 # Para todos os serviços
 down:
-	docker-compose down
+	docker compose down
 
 # Verifica o status dos containers
 status:
-	docker-compose ps
+	docker compose ps
 
 # Acompanha os logs
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 api:
 	uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload

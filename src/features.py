@@ -74,8 +74,10 @@ def add_supplier_history(df: pd.DataFrame) -> pd.DataFrame:
     # Fornecedores sem histórico recebem a média do dataset (impute by mean)
     global_taxa = df["taxa_execucao"].mean()
     global_anulacao = (df["valor_anulado"] > 0).mean()
-    df["hist_taxa_execucao"] = df["hist_taxa_execucao"].fillna(global_taxa)
-    df["hist_perc_anulacao"] = df["hist_perc_anulacao"].fillna(global_anulacao)
+
+    # Evita FutureWarnings de downcasting silencioso
+    df["hist_taxa_execucao"] = df["hist_taxa_execucao"].fillna(global_taxa).infer_objects()
+    df["hist_perc_anulacao"] = df["hist_perc_anulacao"].fillna(global_anulacao).infer_objects()
 
     return df
 

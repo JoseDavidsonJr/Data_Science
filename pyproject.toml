@@ -17,6 +17,9 @@ dependencies = [
     "matplotlib>=3.8",
     "seaborn>=0.13",
     "mcp-brasil>=0.14.0",
+    "evidently>=0.4.0",
+    "prometheus-client>=0.20.0",
+    "psycopg2-binary>=2.9.0",
 ]
 
 [project.optional-dependencies]
