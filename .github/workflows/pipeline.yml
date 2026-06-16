@@ -27,13 +27,16 @@ jobs:
       - name: Fetch fresh data from MCP-Brasil
         run: make fetch
 
-      # 1. LIGAMOS O DOCKER AQUI ANTES DO TREINO
+      - name: Prepare placeholders for Docker
+        run: |
+          mkdir -p models
+          touch facape_mlflow.db
+
       - name: Start Docker Stack
         run: |
           make up
-          sleep 15 # Dá 15 segundinhos para o MLflow e a API iniciarem completamente
+          sleep 15 # Aguarda os serviços subirem
 
-      # 2. AGORA O TREINO VAI FUNCIONAR, POIS O MLFLOW ESTÁ LIGADO
       - name: Run training pipeline
         run: make all-models
 
@@ -43,7 +46,6 @@ jobs:
           name: trained-models
           path: models/
 
-      # 3. TESTAMOS SE AS APIS ESTÃO BOAS E DESLIGAMOS TUDO
       - name: Test APIs and Shutdown Docker
         run: |
           curl -f http://localhost:8000/health || exit 1
