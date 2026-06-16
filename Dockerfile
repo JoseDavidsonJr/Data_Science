@@ -29,5 +29,5 @@ RUN mkdir -p data models
 
 EXPOSE 8000
 
-# O comando de inicialização
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# O comando de inicialização (roda API e Exporter em paralelo)
+CMD python src/business_exporter.py & uvicorn src.api:app --host 0.0.0.0 --port 8000

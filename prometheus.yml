@@ -4,4 +4,8 @@ global:
 scrape_configs:
   - job_name: 'facape_api'
     static_configs:
-      - targets: ['api:8000'] # No Docker, usa o nome do serviço
+      - targets: ['api:8000']
+
+  - job_name: 'facape_business'
+    static_configs:
+      - targets: ['api:8001']
